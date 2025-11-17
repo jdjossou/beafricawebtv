@@ -300,12 +300,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
   }, [])
 
   const clearStreamFields = React.useCallback(() => {
-    onChange(
-      PatchEvent.from([
-        unset(),
-        unset(['streamUid'])
-    ])
-    )
+    onChange(PatchEvent.from([unset()]))
   }, [onChange])
 
   const abortCurrentUpload = React.useCallback(() => {
@@ -465,13 +460,14 @@ export default function StreamUploadInput({value, onChange}: Props) {
       })
 
       queueMicrotask(() => {
-        const patches = [set(playbackId)]
         const finalUid = processedUid ?? uid
-        if (finalUid) {
-          patches.push(set(finalUid, ['streamUid']))
+        const nextValue: StreamValue = {
+          playbackId,
+          uid: finalUid ?? null,
+          duration: typeof duration === 'number' ? duration : null,
+          thumbnailUrl: typeof thumbnail === 'string' && thumbnail ? thumbnail : null,
         }
-        const patchesObj = [...patches]
-        onChange(PatchEvent.from(patchesObj))
+        onChange(PatchEvent.from([set(nextValue)]))
       })
 
       setUploadStatus({
@@ -581,7 +577,14 @@ export default function StreamUploadInput({value, onChange}: Props) {
     }
   }
 
-  const formattedDuration = formatDuration(meta?.duration)
+  const resolvedThumbnail = meta?.thumbnail ?? value?.thumbnailUrl ?? null
+  const resolvedDuration =
+    typeof meta?.duration === 'number'
+      ? meta.duration
+      : typeof value?.duration === 'number'
+        ? value.duration
+        : null
+  const formattedDuration = formatDuration(resolvedDuration)
   const playbackId = value?.playbackId ?? null
 
   return (
@@ -647,11 +650,11 @@ export default function StreamUploadInput({value, onChange}: Props) {
         </div>
       ) : null}
 
-      {meta?.thumbnail ? (
+      {resolvedThumbnail ? (
         <div style={{display: 'grid', gap: 6, maxWidth: 320}}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={meta.thumbnail}
+            src={resolvedThumbnail}
             alt="Miniature Cloudflare"
             style={{width: '100%', borderRadius: 8, border: '1px solid #e5e7eb'}}
           />
