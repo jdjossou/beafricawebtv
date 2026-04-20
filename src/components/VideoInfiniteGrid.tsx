@@ -3,9 +3,6 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const bunnyLibraryId =
-  process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
-
 type VideoPreview = {
   _id: string;
   title: string;
@@ -148,11 +145,7 @@ export default function VideoInfiniteGrid({
     <div className="space-y-6">
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {videos.map(video => {
-          const fallbackThumb =
-            video.thumbnailUrl ??
-            (video.stream?.playbackId && bunnyLibraryId
-              ? `https://vz-${bunnyLibraryId}-${video.stream.playbackId}.b-cdn.net/thumbnail.jpg`
-              : null);
+          const thumbUrl = video.thumbnailUrl ?? null;
 
           return (
             <Link
@@ -161,10 +154,10 @@ export default function VideoInfiniteGrid({
               className="group block overflow-hidden rounded-xl border border-white/10 bg-slate-950/60 hover:border-white/20 hover:shadow-lg transition"
             >
               <div className="aspect-video bg-slate-900">
-                {fallbackThumb ? (
+                {thumbUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={fallbackThumb}
+                    src={thumbUrl}
                     alt={video.title}
                     className="h-full w-full object-cover transition group-hover:scale-[1.02]"
                   />

@@ -2,23 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getVideoThumbnailUrl } from '@/utils/videoThumbnails';
 import { sanityClient } from '../sanity/lib/sanity';
-
-type VideoSanityItem = {
-  _id: string;
-  title: string;
-  slug: { current: string };
-  description?: string;
-  thumbnail?: unknown;
-  stream?: {
-    playbackId?: string | null;
-    thumbnailUrl?: string | null;
-  } | null;
-  publishedAt?: string;
-};
-
-type VideoPreview = VideoSanityItem & {
-  thumbnailUrl: string | null;
-};
+import type { VideoSanityItem, VideoPreview } from '@/types/video';
 
 const channelBrand = {
   name: 'Beafrica WebTV',
@@ -112,9 +96,6 @@ const contactLinks = [
     iconAlt: 'Logo Instagram',
   },
 ];
-
-const bunnyLibraryId =
-  process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
 
 const INITIAL_FETCH_LIMIT = 4;
 
@@ -241,15 +222,7 @@ export default async function Home() {
             <>
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {previewVideos.map(video => {
-                  // getVideoThumbnailUrl already handles:
-                  // - manual Sanity thumbnail
-                  // - stream.thumbnailUrl
-                  // - stream.playbackId fallback
-                  const fallbackThumb =
-                    video.thumbnailUrl ??
-                    (video.stream?.playbackId && bunnyLibraryId
-                      ? `https://vz-${bunnyLibraryId}-${video.stream.playbackId}.b-cdn.net/thumbnail.jpg`
-                      : null);
+                  const thumbUrl = video.thumbnailUrl ?? null;
 
                   return (
                     <Link
@@ -258,10 +231,10 @@ export default async function Home() {
                       className="group block overflow-hidden rounded-xl border border-white/10 bg-slate-950/60 hover:border-white/20 hover:shadow-lg transition"
                     >
                       <div className="aspect-video bg-slate-900">
-                        {fallbackThumb ? (
+                        {thumbUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={fallbackThumb}
+                            src={thumbUrl}
                             alt={video.title}
                             className="h-full w-full object-cover transition group-hover:scale-[1.02]"
                           />

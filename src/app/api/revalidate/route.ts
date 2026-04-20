@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 
 export async function POST(req: Request) {
+  // Prefer the header; fall back to query-param for backward compatibility
+  // with existing Sanity webhook configs.
+  const headerSecret = req.headers.get('x-revalidate-secret');
   const url = new URL(req.url);
-  const secret = url.searchParams.get('secret');
+  const querySecret = url.searchParams.get('secret');
+  const secret = headerSecret || querySecret;
 
-  if (secret !== process.env.REVALIDATE_SECRET) {
+  if (!secret || secret !== process.env.REVALIDATE_SECRET) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -20,8 +24,9 @@ export async function POST(req: Request) {
     body?.after?.slug?.current ?? // if using "document mutations" payload
     null;
 
-  // Revalidate the homepage list
+  // Revalidate all listing pages
   revalidatePath('/');
+  revalidatePath('/videos');
 
   // Revalidate the specific video page if we got a slug
   if (slug && typeof slug === 'string') {

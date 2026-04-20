@@ -1,4 +1,5 @@
 import { urlFor } from '@/sanity/lib/sanityImage';
+import { bunnyThumbnailUrl } from '@/lib/bunny';
 
 type VideoImageSource = {
   thumbnail?: unknown; // Sanity image
@@ -13,9 +14,7 @@ export const getVideoThumbnailUrl = (video?: VideoImageSource): string | null =>
     return null;
   }
 
-  const bunnyLibraryId =
-    process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
-
+  // 1. Manual Sanity thumbnail (highest priority)
   const sanityThumb = video.thumbnail
     ? urlFor(video.thumbnail).width(1280).height(720).fit('crop').url()
     : null;
@@ -24,14 +23,14 @@ export const getVideoThumbnailUrl = (video?: VideoImageSource): string | null =>
     return sanityThumb;
   }
 
+  // 2. Stored Bunny thumbnail URL from Sanity field
   if (video.stream?.thumbnailUrl) {
     return video.stream.thumbnailUrl;
   }
 
+  // 3. Construct Bunny CDN thumbnail from playbackId
   if (video.stream?.playbackId) {
-    if (bunnyLibraryId) {
-      return `https://vz-${bunnyLibraryId}-${video.stream.playbackId}.b-cdn.net/thumbnail.jpg`;
-    }
+    return bunnyThumbnailUrl(video.stream.playbackId);
   }
 
   return null;

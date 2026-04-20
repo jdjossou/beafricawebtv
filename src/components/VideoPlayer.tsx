@@ -1,11 +1,10 @@
 'use client';
 
+import { bunnyEmbedUrl } from '@/lib/bunny';
+
 type Props = {
   playbackId?: string | null;
 };
-
-const bunnyLibraryId =
-  process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
 
 export default function VideoPlayer({ playbackId }: Props) {
   if (!playbackId) {
@@ -16,15 +15,15 @@ export default function VideoPlayer({ playbackId }: Props) {
     );
   }
 
-  if (!bunnyLibraryId) {
+  const embedUrl = bunnyEmbedUrl(playbackId);
+
+  if (!embedUrl) {
     return (
       <div className="aspect-video w-full rounded-2xl bg-slate-900/50 grid place-items-center text-slate-400">
         Configurez NEXT_PUBLIC_BUNNY_LIBRARY_ID pour lire la vidéo.
       </div>
     );
   }
-
-  const embedUrl = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${playbackId}`;
 
   return (
     <div className="aspect-video w-full rounded-2xl shadow">

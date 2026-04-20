@@ -1,25 +1,9 @@
 import VideoInfiniteGrid from '@/components/VideoInfiniteGrid';
 import { sanityClient } from '@/sanity/lib/sanity';
 import { getVideoThumbnailUrl } from '@/utils/videoThumbnails';
+import type { VideoSanityItem, VideoPreview } from '@/types/video';
 
 const INITIAL_PAGE_SIZE = 12;
-
-type VideoSanityItem = {
-  _id: string;
-  title: string;
-  slug: { current: string };
-  description?: string;
-  thumbnail?: unknown;
-  stream?: {
-    playbackId?: string | null;
-    thumbnailUrl?: string | null;
-  } | null;
-  publishedAt?: string;
-};
-
-type VideoPreview = VideoSanityItem & {
-  thumbnailUrl: string | null;
-};
 
 export const metadata = {
   title: 'Vidéothèque | Beafrica WebTV',

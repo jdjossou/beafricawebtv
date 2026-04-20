@@ -76,10 +76,20 @@ type CreateUploadPayload = {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+const API_SECRET = process.env.NEXT_PUBLIC_API_ROUTE_SECRET ?? ''
+
+function apiHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'X-API-Secret': API_SECRET,
+    ...extra,
+  }
+}
+
 async function createDirectUpload(payload: CreateUploadPayload): Promise<CreateUploadResponse> {
-  const res = await fetch('/api/stream/create-upload', {
+  const res = await fetch('/api/bunny/upload', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: apiHeaders(),
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error('Impossible de créer une URL de téléversement direct.')
@@ -217,9 +227,9 @@ async function pollUntilReady(
 
     await sleep(POLL_INTERVAL_MS)
 
-    const res = await fetch('/api/stream/status', {
+    const res = await fetch('/api/bunny/status', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: apiHeaders(),
       body: JSON.stringify({uid}),
       cache: 'no-store',
     })
@@ -259,9 +269,9 @@ async function pollUntilReady(
 }
 
 async function deleteStreamAsset(uid: string) {
-  const res = await fetch('/api/stream/delete', {
+  const res = await fetch('/api/bunny/delete', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: apiHeaders(),
     body: JSON.stringify({uid}),
     cache: 'no-store',
   })
