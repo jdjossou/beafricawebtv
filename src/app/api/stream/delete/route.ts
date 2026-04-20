@@ -1,11 +1,11 @@
 import {NextResponse} from 'next/server'
 
 export async function POST(req: Request) {
-  const accountId = process.env.CF_ACCOUNT_ID
-  const token = process.env.CF_STREAM_TOKEN
+  const libraryId = process.env.BUNNY_LIBRARY_ID
+  const apiKey = process.env.BUNNY_API_KEY
 
-  if (!accountId || !token) {
-    return NextResponse.json({error: 'Missing Cloudflare credentials'}, {status: 500})
+  if (!libraryId || !apiKey) {
+    return NextResponse.json({error: 'Missing Bunny Stream credentials'}, {status: 500})
   }
 
   let uid: unknown
@@ -17,15 +17,15 @@ export async function POST(req: Request) {
   }
 
   if (typeof uid !== 'string' || uid.trim() === '') {
-    return NextResponse.json({error: 'Missing Cloudflare Stream UID'}, {status: 400})
+    return NextResponse.json({error: 'Missing Bunny Stream video ID'}, {status: 400})
   }
 
   const normalizedUid = uid.trim()
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${normalizedUid}`
+  const endpoint = `https://video.bunnycdn.com/library/${libraryId}/videos/${normalizedUid}`
   const res = await fetch(endpoint, {
     method: 'DELETE',
     headers: {
-      Authorization: `Bearer ${token}`,
+      AccessKey: apiKey,
     },
     cache: 'no-store',
   })
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
     return NextResponse.json(
       {
-        error: 'Unable to delete Cloudflare Stream asset',
+        error: 'Unable to delete Bunny Stream asset',
         details: errorPayload,
       },
       {status: res.status},

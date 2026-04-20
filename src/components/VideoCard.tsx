@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { urlFor } from '../sanity/lib/sanityImage';
 
+const bunnyLibraryId =
+  process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
+
 type Props = {
   title: string;
   slug: string;
@@ -17,13 +20,13 @@ export default function VideoCard({ title, slug, thumbnail, stream }: Props) {
     ? urlFor(thumbnail).width(640).height(360).fit("crop").url()
     : null;
 
-  const cfStored = stream?.thumbnailUrl ?? null;
+  const bunnyStored = stream?.thumbnailUrl ?? null;
 
-  const cfFallback = stream?.playbackId
-    ? `https://videodelivery.net/${stream.playbackId}/thumbnails/thumbnail.jpg?height=360`
+  const bunnyFallback = stream?.playbackId && bunnyLibraryId
+    ? `https://vz-${bunnyLibraryId}-${stream.playbackId}.b-cdn.net/thumbnail.jpg`
     : null;
 
-  const thumbUrl = sanityUrl || cfStored || cfFallback || null;
+  const thumbUrl = sanityUrl || bunnyStored || bunnyFallback || null;
 
   return (
     <Link

@@ -3,58 +3,16 @@ import {NextResponse} from 'next/server'
 const POLL_INTERVAL_MS = 4000
 const MAX_WAIT_MS = 5 * 60 * 1000
 
-type CloudflarePlayback = {id?: string | null} | null | undefined
-
-type CloudflareResult = {
-  playbackId?: string | null
-  playback?: CloudflarePlayback[]
-  playbackIds?: CloudflarePlayback[]
-  readyToStream?: boolean
-  status?: {
-    state?: string | null
-    pctComplete?: number | null
-    errorReason?: string | null
-  }
-  uid?: string | null
-  duration?: number | null
-  thumbnail?: string | null
-}
-
-type CloudflareApiResponse = {
-  result?: CloudflareResult | null
-  [key: string]: unknown
-}
-
-function extractPlaybackId(result: CloudflareResult | null | undefined): string | null {
-  if (!result) return null
-  if (typeof result.playbackId === 'string' && result.playbackId.trim()) {
-    return result.playbackId.trim()
-  }
-  const playbackArrayId =
-    Array.isArray(result.playback) && result.playback[0] && result.playback[0]?.id
-      ? result.playback[0]?.id
-      : null
-  const playbackIdsArrayId =
-    Array.isArray(result.playbackIds) && result.playbackIds[0] && result.playbackIds[0]?.id
-      ? result.playbackIds[0]?.id
-      : null
-
-  return playbackArrayId || playbackIdsArrayId || null
+type BunnyVideoResult = {
+  guid?: string
+  status?: number
+  encodeProgress?: number
+  availableResolutions?: string | null
+  thumbnailFileName?: string | null
+  length?: number | null
 }
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-type CloudflareStatusPayload = {
-  readyToStream: boolean
-  status: string | null
-  progress: number | null
-  errorReason: string | null
-  playbackId: string | null
-  uid: string | null
-  duration: number | null
-  thumbnail: string | null
-  raw: unknown
-}
 
 function normalizePct(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -69,55 +27,49 @@ function normalizePct(value: unknown): number | null {
   return null
 }
 
-function buildPayload(rawData: unknown, fallbackUid: string): CloudflareStatusPayload {
-  const parsed = (rawData && typeof rawData === 'object' ? (rawData as CloudflareApiResponse) : {}) || {}
-  const result = parsed.result ?? {}
-  const pct = normalizePct(result.status?.pctComplete)
+function isReady(result: BunnyVideoResult): boolean {
+  if (!result) return false
+  if (result.status === 4) return true // finished
 
-  const payload: CloudflareStatusPayload = {
-    readyToStream: Boolean(result.readyToStream),
-    status: typeof result.status?.state === 'string' ? result.status.state : null,
-    progress: pct,
-    errorReason:
-      typeof result.status?.errorReason === 'string' && result.status.errorReason
-        ? result.status.errorReason
-        : null,
-    playbackId: extractPlaybackId(result),
-    uid: typeof result.uid === 'string' && result.uid ? result.uid : fallbackUid,
-    duration: typeof result.duration === 'number' ? result.duration : null,
-    thumbnail: typeof result.thumbnail === 'string' ? result.thumbnail : null,
-    raw: rawData,
+  const resolutions = result.availableResolutions
+  if (typeof resolutions === 'string' && resolutions.trim()) {
+    return true
   }
 
-  if (!payload.playbackId && payload.uid && (payload.readyToStream || payload.status === 'ready')) {
-    payload.playbackId = payload.uid
-  }
+  return false
+}
 
-  return payload
+function buildThumbnailUrl(libraryId: string, videoId: string, fileName?: string | null): string {
+  const name = (fileName && fileName.trim()) || 'thumbnail.jpg'
+  return `https://vz-${libraryId}-${videoId}.b-cdn.net/${name}`
 }
 
 export async function POST(req: Request) {
-  const accountId = process.env.CF_ACCOUNT_ID
-  const token = process.env.CF_STREAM_TOKEN
+  const libraryId = process.env.BUNNY_LIBRARY_ID
+  const apiKey = process.env.BUNNY_API_KEY
 
-  if (!accountId || !token) {
-    return NextResponse.json({error: 'Missing Cloudflare credentials'}, {status: 500})
+  if (!libraryId || !apiKey) {
+    return NextResponse.json({error: 'Missing Bunny Stream credentials'}, {status: 500})
   }
 
-  const {uid} = await req.json()
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({error: 'Invalid JSON payload'}, {status: 400})
+  }
+
+  const uid = (body as {uid?: string})?.uid
   if (!uid) {
     return NextResponse.json({error: 'Missing uid'}, {status: 400})
   }
 
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`
+  const endpoint = `https://video.bunnycdn.com/library/${libraryId}/videos/${uid}`
   const startedAt = Date.now()
 
-  let lastPayload: CloudflareStatusPayload | null = null
-
-  // Keep polling Cloudflare until a playback ID is available or timeout is reached.
   for (;;) {
     const res = await fetch(endpoint, {
-      headers: {Authorization: `Bearer ${token}`},
+      headers: {AccessKey: apiKey},
       cache: 'no-store',
     })
 
@@ -128,33 +80,41 @@ export async function POST(req: Request) {
       data = null
     }
 
-    console.log('[CF Stream status]', JSON.stringify(data, null, 2))
+    console.log('[Bunny Stream status]', JSON.stringify(data, null, 2))
 
-    if (!res.ok) {
-      return NextResponse.json({error: data}, {status: res.status})
+    if (!res.ok || !data || typeof data !== 'object') {
+      return NextResponse.json({error: data}, {status: res.status || 502})
     }
 
-    lastPayload = buildPayload(data, uid)
-
-    const statusLabel = lastPayload.status?.toLowerCase()
-    const errored =
-      statusLabel === 'error' ||
-      statusLabel === 'failed' ||
-      Boolean(lastPayload.errorReason) ||
-      data === null
-
-    if (lastPayload.playbackId) {
-      return NextResponse.json(lastPayload)
+    const result = data as BunnyVideoResult
+    const progress = normalizePct(result.encodeProgress)
+    const playbackId = typeof result.guid === 'string' && result.guid ? result.guid : uid
+    const ready = isReady(result)
+    const errored = result.status === 5
+    const payload = {
+      readyToStream: ready,
+      status: typeof result.status === 'number' ? String(result.status) : null,
+      progress,
+      errorReason: null,
+      playbackId,
+      uid,
+      duration: typeof result.length === 'number' ? result.length : null,
+      thumbnail: buildThumbnailUrl(libraryId, playbackId, result.thumbnailFileName),
+      raw: data,
     }
 
     if (errored) {
-      return NextResponse.json(lastPayload, {status: 502})
+      return NextResponse.json(payload, {status: 502})
+    }
+
+    if (ready) {
+      return NextResponse.json(payload)
     }
 
     if (Date.now() - startedAt >= MAX_WAIT_MS) {
       return NextResponse.json(
         {
-          ...lastPayload,
+          ...payload,
           timedOut: true,
           timeoutMs: MAX_WAIT_MS,
         },

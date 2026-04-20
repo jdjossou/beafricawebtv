@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+const bunnyLibraryId =
+  process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
+
 type VideoPreview = {
   _id: string;
   title: string;
@@ -147,8 +150,8 @@ export default function VideoInfiniteGrid({
         {videos.map(video => {
           const fallbackThumb =
             video.thumbnailUrl ??
-            (video.stream?.playbackId
-              ? `https://videodelivery.net/${video.stream.playbackId}/thumbnails/thumbnail.jpg?height=360`
+            (video.stream?.playbackId && bunnyLibraryId
+              ? `https://vz-${bunnyLibraryId}-${video.stream.playbackId}.b-cdn.net/thumbnail.jpg`
               : null);
 
           return (

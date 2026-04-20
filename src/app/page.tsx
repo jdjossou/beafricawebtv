@@ -113,6 +113,9 @@ const contactLinks = [
   },
 ];
 
+const bunnyLibraryId =
+  process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || process.env.BUNNY_LIBRARY_ID || '';
+
 const INITIAL_FETCH_LIMIT = 4;
 
 export default async function Home() {
@@ -218,7 +221,7 @@ export default async function Home() {
                     />
                   ) : (
                     <div className="grid h-full place-items-center text-sm text-slate-300">
-                      Ajoutez une miniature dans Sanity ou via Cloudflare Stream.
+                      Ajoutez une miniature dans Sanity ou via Bunny Stream.
                     </div>
                   )}
                 </div>
@@ -244,8 +247,8 @@ export default async function Home() {
                   // - stream.playbackId fallback
                   const fallbackThumb =
                     video.thumbnailUrl ??
-                    (video.stream?.playbackId
-                      ? `https://videodelivery.net/${video.stream.playbackId}/thumbnails/thumbnail.jpg?height=360`
+                    (video.stream?.playbackId && bunnyLibraryId
+                      ? `https://vz-${bunnyLibraryId}-${video.stream.playbackId}.b-cdn.net/thumbnail.jpg`
                       : null);
 
                   return (

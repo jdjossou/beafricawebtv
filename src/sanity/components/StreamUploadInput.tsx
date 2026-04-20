@@ -19,7 +19,15 @@ type StreamValue = {
 
 type Props = ObjectInputProps<StreamValue, ObjectSchemaType>
 
-type CreateUploadResponse = {uploadURL: string; uid: string | null}
+type CreateUploadResponse = {
+  uploadURL: string
+  uid: string | null
+  signature: string
+  expires: number
+  libraryId: string
+  tusHeaders?: Record<string, string>
+  uploadMetadata?: string
+}
 
 type UploadStage = 'idle' | 'preparing' | 'uploading' | 'processing' | 'deleting' | 'complete' | 'error'
 
@@ -56,6 +64,8 @@ const TUS_CHUNK_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB chunks avoid single huge 
 type UploadWithProgressOptions = {
   signal?: AbortSignal
   onRegister?: (upload: TusUpload | null) => void
+  headers?: Record<string, string>
+  metadata?: Record<string, string | null | undefined>
 }
 
 type CreateUploadPayload = {
@@ -82,7 +92,7 @@ async function uploadWithProgress(
   onProgress: (percent: number | null) => void,
   options?: UploadWithProgressOptions,
 ) {
-  const {signal, onRegister} = options ?? {}
+  const {signal, onRegister, headers, metadata} = options ?? {}
 
   await new Promise<void>((resolve, reject) => {
     if (signal?.aborted) {
@@ -107,12 +117,14 @@ async function uploadWithProgress(
     let upload: TusUpload
     try {
       upload = new TusUpload(file, {
-        uploadUrl: uploadURL,
+        endpoint: uploadURL,
         uploadSize: file.size,
         metadata: {
-          filename: file.name,
+          title: file.name,
           filetype: file.type || 'application/octet-stream',
+          ...metadata,
         },
+        headers,
         storeFingerprintForResuming: true,
         removeFingerprintOnSuccess: true,
         chunkSize: TUS_CHUNK_SIZE_BYTES,
@@ -150,12 +162,12 @@ async function uploadWithProgress(
                 }
                 reject(
                   new Error(
-                    `Le téléversement vers Cloudflare a échoué (${status}) : ${detail}`,
+                    `Le téléversement vers Bunny a échoué (${status}) : ${detail}`,
                   ),
                 )
                 return
               }
-              reject(new Error('Le téléversement vers Cloudflare a échoué (erreur réseau).'))
+              reject(new Error('Le téléversement vers Bunny a échoué (erreur réseau).'))
               return
             }
 
@@ -164,7 +176,7 @@ async function uploadWithProgress(
               return
             }
 
-            reject(new Error('Le téléversement vers Cloudflare a échoué (erreur réseau).'))
+            reject(new Error('Le téléversement vers Bunny a échoué (erreur réseau).'))
           })
         },
         retryDelays: [0, 2000, 5000, 10000],
@@ -200,7 +212,7 @@ async function pollUntilReady(
 
   for (;;) {
     if (Date.now() - startedAt > PROCESSING_TIMEOUT_MS) {
-      throw new Error('Cloudflare met trop de temps à finaliser la vidéo. Merci de réessayer.')
+      throw new Error('Bunny met trop de temps à finaliser la vidéo. Merci de réessayer.')
     }
 
     await sleep(POLL_INTERVAL_MS)
@@ -216,8 +228,8 @@ async function pollUntilReady(
     if (!res.ok) {
       const label =
         res.status === 504 || data?.timedOut
-          ? 'Cloudflare n’a pas retourné d’identifiant de lecture à temps.'
-          : 'Impossible de récupérer le statut Cloudflare Stream.'
+          ? 'Bunny n’a pas retourné d’identifiant de lecture à temps.'
+          : 'Impossible de récupérer le statut Bunny Stream.'
       throw new Error(`${label} ${JSON.stringify(data)}`)
     }
 
@@ -265,7 +277,7 @@ async function deleteStreamAsset(uid: string) {
         ? JSON.stringify((payload as {details?: unknown}).details)
         : null
 
-    throw new Error(message ?? reason ?? 'Cloudflare Stream asset deletion failed.')
+    throw new Error(message ?? reason ?? 'Bunny Stream asset deletion failed.')
   }
 }
 
@@ -355,7 +367,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
     abortControllerRef.current = controller
 
     try {
-      const {uploadURL, uid} = await createDirectUpload({
+      const {uploadURL, uid, signature, expires, libraryId, tusHeaders: serverTusHeaders} = await createDirectUpload({
 
         filename: file.name,
 
@@ -365,8 +377,8 @@ export default function StreamUploadInput({value, onChange}: Props) {
 
       })
 
-      if (!uid) {
-        throw new Error("Cloudflare n'a pas renvoyé d'UID pour ce téleversement.")
+      if (!uid || !signature || !libraryId || !uploadURL) {
+        throw new Error("Bunny n'a pas renvoyé d'identifiant pour ce téléversement.")
       }
 
       setUploadStatus({
@@ -374,10 +386,17 @@ export default function StreamUploadInput({value, onChange}: Props) {
 
         progress: 10,
 
-        message: 'Téléversement vers Cloudflare.',
+        message: 'Téléversement vers Bunny Stream.',
 
         detail: '0 %',
       })
+
+      const tusHeaders = serverTusHeaders ?? {
+        AuthorizationSignature: signature,
+        AuthorizationExpire: String(expires),
+        LibraryId: libraryId,
+        VideoId: uid,
+      }
 
       await uploadWithProgress(
         uploadURL,
@@ -390,7 +409,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
               return {
                 stage: 'uploading',
                 progress: normalized,
-                message: 'Téléversement vers Cloudflare.',
+                message: 'Téléversement vers Bunny Stream.',
                 detail: `${Math.round(percent)} %`,
               }
             }
@@ -398,13 +417,18 @@ export default function StreamUploadInput({value, onChange}: Props) {
             return {
               stage: 'uploading',
               progress: Math.min(90, prev.progress + 1),
-              message: 'Téléversement vers Cloudflare.',
+              message: 'Téléversement vers Bunny Stream.',
               detail: 'Calcul du volume transfère.',
             }
           })
         },
         {
           signal: controller.signal,
+          headers: tusHeaders,
+          metadata: {
+            videoId: uid,
+            libraryId,
+          },
           onRegister: upload => {
             tusUploadRef.current = upload
           },
@@ -418,7 +442,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
       setUploadStatus({
         stage: 'processing',
         progress: 90,
-        message: 'Traitement vidéo par Cloudflare (cela peut prendre quelques minutes).',
+        message: 'Traitement vidéo par Bunny (cela peut prendre quelques minutes).',
         detail: 'Analyse du flux en cours.',
       })
 
@@ -447,13 +471,13 @@ export default function StreamUploadInput({value, onChange}: Props) {
           }
 
           if (payload.errorReason) {
-            parts.push(`Alerte Cloudflare : ${payload.errorReason}`)
+            parts.push(`Alerte Bunny : ${payload.errorReason}`)
           }
 
           return {
             stage: 'processing',
             progress: normalized,
-            message: 'Traitement vidéo par Cloudflare (cela peut prendre quelques minutes).',
+            message: 'Traitement vidéo par Bunny (cela peut prendre quelques minutes).',
             detail: parts.length > 0 ? parts.join(' | ') : prev.detail ?? null,
           }
         })
@@ -474,7 +498,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
         stage: 'complete',
         progress: 100,
         message: 'Téléversement finalisé !',
-        detail: 'Identifiants Cloudflare enregistrés dans Sanity.',
+        detail: 'Identifiants Bunny enregistrés dans Sanity.',
       })
 
       setMeta({duration, thumbnail})
@@ -524,7 +548,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
     }
 
     if (!storedUid) {
-      const message = "Impossible de trouver l'UID Cloudflare à supprimer."
+      const message = "Impossible de trouver l'ID Bunny à supprimer."
 
       setError(message)
 
@@ -543,7 +567,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
     setUploadStatus({
       stage: 'deleting',
       progress: 25,
-      message: 'Suppression du flux Cloudflare.',
+      message: 'Suppression de la vidéo Bunny.',
       detail: `UID : ${storedUid}`,
     })
 
@@ -557,7 +581,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
       setUploadStatus({
         stage: 'complete',
         progress: 100,
-        message: 'Vidéo Cloudflare supprimée.',
+        message: 'Vidéo Bunny supprimée.',
         detail: null,
       })
 
@@ -571,7 +595,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
       setUploadStatus({
         stage: 'error',
         progress: 0,
-        message: 'Impossible de supprimer la ressource Cloudflare.',
+        message: 'Impossible de supprimer la ressource Bunny.',
         detail: message,
       })
     }
@@ -655,7 +679,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={resolvedThumbnail}
-            alt="Miniature Cloudflare"
+            alt="Miniature Bunny"
             style={{width: '100%', borderRadius: 8, border: '1px solid #e5e7eb'}}
           />
         </div>

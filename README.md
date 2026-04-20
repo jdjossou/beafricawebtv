@@ -13,7 +13,7 @@ The goal is independence: videos remain available even if the external platform 
   - Mobile-friendly, SEO-optimized pages.
 
 - **Video Playback**
-  - Adaptive streaming with Cloudflare Stream.
+  - Adaptive streaming with Bunny Stream.
   - Support for thumbnails.
 
 - **Content Management**
@@ -22,7 +22,7 @@ The goal is independence: videos remain available even if the external platform 
   - Drafts, scheduling, and playlist/series support.
 
 - **Resilience**
-  - Originals stored in object storage (Cloudflare R2/Backblaze B2) for long-term backups.
+  - Originals stored in object storage (Bunny/R2/Backblaze B2) for long-term backups.
   - Site revalidates automatically when new videos are published.
 
 ---
@@ -31,10 +31,10 @@ The goal is independence: videos remain available even if the external platform 
 
 - **Frontend:** [Next.js](https://nextjs.org/) + [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)  
 - **CMS:** [Sanity](https://www.sanity.io/) (headless, customizable schemas)  
-- **Video Delivery:** [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) (encoding, CDN)  
-- **Storage:** Cloudflare R2 or Backblaze B2 (masters/backups)  
+- **Video Delivery:** [Bunny Stream](https://bunny.net/) (encoding, CDN)  
+- **Storage:** Bunny Object Storage, Cloudflare R2, or Backblaze B2 (masters/backups)  
 - **Hosting:** [Vercel](https://vercel.com/) (Next.js optimized)  
-- **Domain/CDN:** Cloudflare  
+- **Domain/CDN:** Cloudflare/Bunny  
 
 ---
 

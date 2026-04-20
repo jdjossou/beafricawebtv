@@ -37,9 +37,9 @@ export default defineType({
     }),
     defineField({
       name: 'stream',
-      title: 'Cloudflare Stream',
+      title: 'Bunny Stream',
       type: 'object',
-      description: 'Téléversement et métadonnées Cloudflare Stream.',
+      description: 'Téléversement et métadonnées Bunny Stream.',
       components: {
         input: StreamUploadInput,
       },
@@ -47,15 +47,15 @@ export default defineType({
         defineField({
           name: 'playbackId',
           type: 'string',
-          title: 'Identifiant de lecture Cloudflare Stream',
+          title: 'Identifiant de lecture Bunny Stream',
           readOnly: true,
         }),
         defineField({
           name: 'uid',
           type: 'string',
-          title: 'Identifiant Cloudflare Stream (UID)',
+          title: 'Identifiant Bunny Stream (UID)',
           description:
-            'Identifiant interne utilisé pour les API Cloudflare (statut, suppression).',
+            'Identifiant interne utilisé pour les API Bunny (statut, suppression).',
           readOnly: true,
           hidden: true,
         }),
@@ -69,7 +69,7 @@ export default defineType({
         defineField({
           name: 'thumbnailUrl',
           type: 'url',
-          title: 'Miniature Cloudflare',
+          title: 'Miniature Bunny',
           readOnly: true,
           hidden: true,
         }),
