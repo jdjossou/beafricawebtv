@@ -1,5 +1,6 @@
 import {defineField, defineType} from 'sanity'
 import StreamUploadInput from '../components/StreamUploadInput'
+import TagInput from '../components/TagInput'
 
 export default defineType({
   name: 'video',
@@ -23,6 +24,23 @@ export default defineType({
       name: 'description',
       type: 'text',
       title: 'Description',
+    }),
+    defineField({
+      name: 'tags',
+      title: 'Tags',
+      type: 'array',
+      of: [{type: 'string'}],
+      components: {
+        input: TagInput,
+      },
+      validation: rule =>
+        rule.custom((tags?: string[]) => {
+          if (!tags || tags.length === 0) return true
+          const total = tags.join(',').length
+          return total <= 500
+            ? true
+            : `Tags exceed 500-character limit (currently ${total}).`
+        }),
     }),
     defineField({
       name: 'thumbnail',

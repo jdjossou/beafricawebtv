@@ -22,6 +22,7 @@ export default async function Home() {
           title,
           slug,
           description,
+          tags,
           thumbnail,
           stream {
             playbackId,

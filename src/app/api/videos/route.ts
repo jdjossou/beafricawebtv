@@ -16,10 +16,10 @@ export async function GET(request: Request) {
   const requestedLimit = Math.max(Number(limitParam ?? DEFAULT_LIMIT) || DEFAULT_LIMIT, 1);
   const limit = Math.min(requestedLimit, MAX_LIMIT);
 
-  // Build search filter (title-only search)
+  // Build search filter (title + tags search)
   const searchQuery = queryParam?.trim() || '';
   const searchFilter = searchQuery
-    ? ` && title match "*${searchQuery.replace(/"/g, '')}*"`
+    ? ` && (title match "*${searchQuery.replace(/"/g, '')}*" || count(tags[@ match "*${searchQuery.replace(/"/g, '')}*"]) > 0)`
     : '';
 
   try {
@@ -32,6 +32,7 @@ export async function GET(request: Request) {
         title,
         slug,
         description,
+        tags,
         thumbnail,
         stream {
           playbackId,

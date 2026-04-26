@@ -8,6 +8,7 @@ export type VideoSanityItem = {
   title: string;
   slug: { current: string };
   description?: string;
+  tags?: string[];
   thumbnail?: unknown;
   stream?: {
     playbackId?: string | null;

@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { sanityClient } from '../../../sanity/lib/sanity';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoShareButton from '@/components/VideoShareButton';
@@ -17,6 +18,7 @@ type HeaderList = Awaited<ReturnType<typeof headers>>;
 type VideoDoc = {
   title: string;
   description?: string;
+  tags?: string[];
   publishedAt?: string;
   thumbnail?: unknown;
   stream?: {
@@ -31,6 +33,7 @@ async function getVideo(slug: string) {
   const query = `*[_type == "video" && slug.current == $slug][0]{
     title,
     description,
+    tags,
     publishedAt,
     thumbnail,
     stream {
@@ -202,6 +205,21 @@ export default async function Page({ params }: PageProps) {
                 {video.description}
               </p>
             </section>
+          )}
+
+          {/* Tags */}
+          {video.tags && video.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {video.tags.map((tag) => (
+                <Link
+                  key={tag}
+                  href={`/videos?q=${encodeURIComponent(tag)}`}
+                  className="video-tag"
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
           )}
 
           {/* Divider */}

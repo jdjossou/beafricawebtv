@@ -20,6 +20,7 @@ export default async function RelatedVideos({
         title,
         slug,
         description,
+        tags,
         thumbnail,
         stream {
           playbackId,

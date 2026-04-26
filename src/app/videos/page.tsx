@@ -22,7 +22,7 @@ export default async function VideosPage({ searchParams }: PageProps) {
 
   // Build GROQ filter
   const searchFilter = searchQuery
-    ? ` && title match "*${searchQuery.replace(/"/g, '')}*"`
+    ? ` && (title match "*${searchQuery.replace(/"/g, '')}*" || count(tags[@ match "*${searchQuery.replace(/"/g, '')}*"]) > 0)`
     : '';
 
   const { videos: rawVideos, total } = await sanityClient.fetch<{
@@ -36,6 +36,7 @@ export default async function VideosPage({ searchParams }: PageProps) {
           title,
           slug,
           description,
+          tags,
           thumbnail,
           stream {
             playbackId,
