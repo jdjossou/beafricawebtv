@@ -41,7 +41,7 @@ export default function Footer() {
   return (
     <footer className="hidden border-t border-[var(--border)] bg-[var(--bg-surface)]/50 lg:block">
       <div className="content-container py-10">
-        <div className="grid gap-10 md:grid-cols-3">
+        <div className="grid gap-10 md:grid-cols-4">
           {/* Brand */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
@@ -84,6 +84,33 @@ export default function Footer() {
             </nav>
           </div>
 
+          {/* Legal */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              Légal
+            </h3>
+            <nav className="flex flex-col gap-2">
+              <Link
+                href="/legal/policy"
+                className="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                Politique de confidentialité
+              </Link>
+              <Link
+                href="/legal/terms"
+                className="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                Conditions d&apos;utilisation
+              </Link>
+              <Link
+                href="/legal/cookies"
+                className="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                Politique relative aux cookies
+              </Link>
+            </nav>
+          </div>
+
           {/* Socials */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -112,10 +139,30 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-[var(--border)] pt-6">
+        <div className="mt-8 flex flex-col items-start justify-between gap-4 border-t border-[var(--border)] pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-[var(--text-muted)]">
             © {new Date().getFullYear()} Beafrica WebTV. Tous droits réservés.
           </p>
+          <nav className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link
+              href="/legal/policy"
+              className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+            >
+              Confidentialité
+            </Link>
+            <Link
+              href="/legal/terms"
+              className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+            >
+              Conditions
+            </Link>
+            <Link
+              href="/legal/cookies"
+              className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+            >
+              Cookies
+            </Link>
+          </nav>
         </div>
       </div>
     </footer>
