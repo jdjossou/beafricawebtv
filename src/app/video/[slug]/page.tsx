@@ -1,10 +1,13 @@
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { sanityClient } from '../../../sanity/lib/sanity';
-import VideoBackButton from '@/components/VideoBackButton';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoShareButton from '@/components/VideoShareButton';
+import RelatedVideos from '@/components/video/RelatedVideos';
+import VideoCardSkeleton from '@/components/video/VideoCardSkeleton';
+import VideoGrid from '@/components/video/VideoGrid';
 import { getVideoThumbnailUrl } from '@/utils/videoThumbnails';
 
 const FALLBACK_OPENGRAPH_IMAGE = '/images/channel-avatar.jpg';
@@ -39,7 +42,6 @@ async function getVideo(slug: string) {
   }`;
   return sanityClient.fetch<VideoDoc | null>(query, { slug });
 }
-
 
 function resolveBaseUrl(headerList: HeaderList): string | null {
   const forwardedProto = headerList.get('x-forwarded-proto');
@@ -141,118 +143,86 @@ type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function sanitizeInternalPath(
-  value: string | null | undefined,
-): string | null {
-  if (!value || typeof value !== 'string') return null;
-
-  const trimmed = value.trim();
-  if (!trimmed.startsWith('/')) return null;
-  if (trimmed.startsWith('//')) return null;
-
-  return trimmed;
-}
-
-function pickBackPathFromQuery(
-  searchParams: Awaited<PageProps['searchParams']>,
-): string | null {
-  if (!searchParams) return null;
-
-  const candidateKeys = ['from', 'origin', 'ref', 'returnTo', 'redirect'];
-
-  for (const key of candidateKeys) {
-    const raw = searchParams[key];
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    const path = sanitizeInternalPath(value);
-    if (path) return path;
-  }
-
-  return null;
-}
-
-function sanitizeRefererPath(
-  referer: string | null,
-  hostHeader: string | null,
-): string | null {
-  if (!referer || !hostHeader) return null;
-
-  const allowedHost = hostHeader.split(',')[0]?.trim();
-  if (!allowedHost) return null;
-
-  try {
-    const refererUrl = new URL(referer);
-    if (refererUrl.host !== allowedHost) return null;
-
-    return `${refererUrl.pathname}${refererUrl.search}${refererUrl.hash}`;
-  } catch {
-    return null;
-  }
-}
-
-export default async function Page({ params, searchParams }: PageProps) {
+export default async function Page({ params }: PageProps) {
   const resolvedParams = params ? await params : undefined;
   const slug = resolvedParams?.slug;
   if (!slug) return notFound();
 
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-
   const video = await getVideo(slug);
   if (!video) return notFound();
 
-  // 👇 headers() is async in your setup
-  const headerList = await headers();
-  const hostHeader =
-    headerList.get('x-forwarded-host') ?? headerList.get('host');
-  const refererPath = sanitizeRefererPath(
-    headerList.get('referer'),
-    hostHeader,
-  );
-  const queryBackPath = pickBackPathFromQuery(resolvedSearchParams);
-
   const date = video.publishedAt
-    ? new Date(video.publishedAt).toLocaleDateString()
+    ? new Date(video.publishedAt).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
     : undefined;
 
   const playbackId = video.stream?.playbackId ?? null;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
-        <div className="flex items-center gap-3 text-sm">
-          <VideoBackButton
-            className="text-blue-600 underline"
-            queryHref={queryBackPath}
-            referrerHref={refererPath}
-          />
-          {date && <span className="text-slate-300">| {date}</span>}
-        </div>
-
-        <h1 className="text-2xl font-semibold sm:text-3xl">{video.title}</h1>
-
-        {/* Player */}
-        {playbackId ? (
-          <div className="overflow-hidden rounded-2xl">
+    <main className="main-content">
+      <div className="content-container py-6">
+        <div className="mx-auto max-w-5xl space-y-6">
+          {/* Player */}
+          {playbackId ? (
             <VideoPlayer playbackId={playbackId} />
+          ) : (
+            <div className="flex aspect-video w-full items-center justify-center rounded-[var(--radius-lg)] bg-[var(--bg-surface)] text-sm text-[var(--text-muted)]">
+              <p>Aucun identifiant de lecture disponible. Ajoutez-en un dans le Studio.</p>
+            </div>
+          )}
+
+          {/* Title + Meta */}
+          <div className="space-y-3">
+            <h1 className="text-xl font-semibold leading-tight text-[var(--text-primary)] sm:text-2xl">
+              {video.title}
+            </h1>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {date && (
+                <span className="text-sm text-[var(--text-muted)]">{date}</span>
+              )}
+              <VideoShareButton
+                title={video.title}
+                description={video.description}
+                path={`/video/${slug}`}
+              />
+            </div>
           </div>
-        ) : (
-        <p className="text-sm text-red-400">
-          No playback ID set for this video. Add one in the Studio.
-          </p>
-        )}
 
-        <VideoShareButton
-          title={video.title}
-          description={video.description}
-          path={`/video/${slug}`}
-          className="sm:flex-row sm:items-center sm:gap-3"
-        />
+          {/* Divider */}
+          <div className="h-px bg-[var(--border)]" />
 
-        {/* Description */}
-        {video.description && (
-          <section className="prose prose-sm max-w-none text-slate-200 sm:prose-base">
-            <p className="break-words whitespace-pre-wrap">{video.description}</p>
-          </section>
-        )}
+          {/* Description */}
+          {video.description && (
+            <section className="max-w-3xl">
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--text-secondary)]">
+                {video.description}
+              </p>
+            </section>
+          )}
+
+          {/* Divider */}
+          <div className="h-px bg-[var(--border)]" />
+
+          {/* Related Videos */}
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                <div className="h-5 w-48 animate-skeleton rounded bg-white/[0.06]" />
+                <VideoGrid>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <VideoCardSkeleton key={i} />
+                  ))}
+                </VideoGrid>
+              </div>
+            }
+          >
+            <RelatedVideos excludeSlug={slug} count={4} />
+          </Suspense>
+        </div>
       </div>
     </main>
   );

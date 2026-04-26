@@ -1,7 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import VideoCard from '@/components/video/VideoCard';
+import VideoGrid from '@/components/video/VideoGrid';
+import VideoCardSkeleton from '@/components/video/VideoCardSkeleton';
 
 type VideoPreview = {
   _id: string;
@@ -23,9 +25,10 @@ type VideoInfiniteGridProps = {
   pageSize?: number;
   autoLoadOnMount?: boolean;
   showManualTrigger?: boolean;
+  searchQuery?: string;
 };
 
-const DEFAULT_PAGE_SIZE = 6;
+const DEFAULT_PAGE_SIZE = 12;
 
 export default function VideoInfiniteGrid({
   initialVideos,
@@ -34,6 +37,7 @@ export default function VideoInfiniteGrid({
   pageSize = DEFAULT_PAGE_SIZE,
   autoLoadOnMount = false,
   showManualTrigger = true,
+  searchQuery,
 }: VideoInfiniteGridProps) {
   const [videos, setVideos] = useState<VideoPreview[]>(initialVideos);
   const [offset, setOffset] = useState(initialOffset);
@@ -45,17 +49,14 @@ export default function VideoInfiniteGrid({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore) {
-      return;
-    }
+    if (loading || !hasMore) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/videos?offset=${offset}&limit=${pageSize}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      let url = `/api/videos?offset=${offset}&limit=${pageSize}`;
+      if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
 
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Impossible de charger plus de vidéos pour le moment.');
       }
@@ -67,142 +68,100 @@ export default function VideoInfiniteGrid({
       } = await response.json();
 
       if (Array.isArray(data.videos) && data.videos.length > 0) {
-        setVideos(prev => {
-          const existingIds = new Set(prev.map(video => video._id));
-          const merged = data.videos.filter(video => !existingIds.has(video._id));
+        setVideos((prev) => {
+          const existingIds = new Set(prev.map((v) => v._id));
+          const merged = data.videos.filter((v) => !existingIds.has(v._id));
           return [...prev, ...merged];
         });
-        const nextOffset = offset + data.videos.length;
-        setOffset(nextOffset);
+        setOffset((prev) => prev + data.videos.length);
         setHasMore(data.hasMore);
       } else {
         setHasMore(false);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur inattendue.';
-      setError(message);
+      setError(err instanceof Error ? err.message : 'Erreur inattendue.');
     } finally {
       setLoading(false);
     }
-  }, [hasMore, loading, offset, pageSize]);
+  }, [hasMore, loading, offset, pageSize, searchQuery]);
 
   useEffect(() => {
-    if (autoLoadOnMount) {
-      setAutoLoadEnabled(true);
-    }
+    if (autoLoadOnMount) setAutoLoadEnabled(true);
   }, [autoLoadOnMount]);
 
   useEffect(() => {
-    if (!autoLoadEnabled || !hasMore) {
-      return;
-    }
-
+    if (!autoLoadEnabled || !hasMore) return;
     const sentinel = sentinelRef.current;
-    if (!sentinel) {
-      return;
-    }
+    if (!sentinel) return;
 
     const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0]?.isIntersecting) {
-          loadMore();
-        }
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
       },
-      { rootMargin: '200px' }
+      { rootMargin: '300px' }
     );
 
     observer.observe(sentinel);
-
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [autoLoadEnabled, hasMore, loadMore]);
 
   const handleEnableAutoLoad = () => {
-    if (!autoLoadEnabled) {
-      setAutoLoadEnabled(true);
-    }
+    if (!autoLoadEnabled) setAutoLoadEnabled(true);
     void loadMore();
   };
 
   if (totalCount === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center text-slate-300">
-        Aucune vidéo n&apos;est encore publiée.
-      </div>
-    );
-  }
-
-  if (videos.length === 0) {
-    return (
-      <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-8 text-center text-slate-300">
-        Aucune autre vidéo n&apos;est disponible pour le moment.
+      <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--border)] bg-[var(--bg-surface)] p-12 text-center text-sm text-[var(--text-muted)]">
+        {searchQuery
+          ? `Aucun résultat pour "${searchQuery}".`
+          : "Aucune vidéo n\u2019est encore publiée."}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {videos.map(video => {
-          const thumbUrl = video.thumbnailUrl ?? null;
+      <VideoGrid>
+        {videos.map((video) => (
+          <VideoCard
+            key={video._id}
+            slug={video.slug.current}
+            title={video.title}
+            thumbnailUrl={video.thumbnailUrl}
+            publishedAt={video.publishedAt}
+          />
+        ))}
 
-          return (
-            <Link
-              key={video._id}
-              href={`/video/${video.slug.current}`}
-              className="group block overflow-hidden rounded-xl border border-white/10 bg-slate-950/60 hover:border-white/20 hover:shadow-lg transition"
-            >
-              <div className="aspect-video bg-slate-900">
-                {thumbUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={thumbUrl}
-                    alt={video.title}
-                    className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                  />
-                ) : (
-                  <div className="grid h-full place-items-center text-sm text-slate-300">
-                    Miniature à venir
-                  </div>
-                )}
-              </div>
-              <div className="p-3">
-                <h3 className="text-base font-medium text-white line-clamp-2">{video.title}</h3>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+        {/* Skeleton loaders while fetching */}
+        {loading &&
+          Array.from({ length: Math.min(pageSize, 4) }).map((_, i) => (
+            <VideoCardSkeleton key={`skeleton-${i}`} />
+          ))}
+      </VideoGrid>
 
-      {error ? (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+      {error && (
+        <div className="rounded-[var(--radius-md)] border border-red-500/20 bg-red-500/5 p-4 text-center text-sm text-red-300">
           {error}
         </div>
-      ) : null}
+      )}
 
-      {hasMore && showManualTrigger ? (
-        <div className="flex flex-col items-center gap-3">
+      {hasMore && showManualTrigger && !autoLoadEnabled && (
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={handleEnableAutoLoad}
             disabled={loading}
-            className="rounded-full border border-white/20 px-5 py-2 text-sm font-medium text-white transition hover:border-white/40 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full border border-[var(--border)] bg-white/[0.04] px-6 py-2.5 text-sm font-medium text-[var(--text-primary)] transition-all hover:border-[var(--border-hover)] hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Chargement…' : autoLoadEnabled ? 'Charger plus de vidéos' : 'Voir toute la vidéothèque'}
+            {loading ? 'Chargement…' : 'Charger plus de vidéos'}
           </button>
         </div>
-      ) : null}
+      )}
 
-      {autoLoadEnabled && hasMore ? (
-        <div className="text-center text-xs text-slate-400">
-          Faites défiler pour charger plus de vidéos
-        </div>
-      ) : null}
-
-      {autoLoadEnabled && hasMore ? (
-        <div ref={sentinelRef} className="h-1 w-full" />
-      ) : null}
+      {autoLoadEnabled && hasMore && (
+        <div ref={sentinelRef} className="h-1 w-full" aria-hidden="true" />
+      )}
     </div>
   );
 }

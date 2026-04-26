@@ -10,18 +10,24 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const offsetParam = url.searchParams.get('offset');
   const limitParam = url.searchParams.get('limit');
+  const queryParam = url.searchParams.get('q');
 
   const offset = Math.max(Number(offsetParam ?? '0') || 0, 0);
   const requestedLimit = Math.max(Number(limitParam ?? DEFAULT_LIMIT) || DEFAULT_LIMIT, 1);
   const limit = Math.min(requestedLimit, MAX_LIMIT);
 
+  // Build search filter (title-only search)
+  const searchQuery = queryParam?.trim() || '';
+  const searchFilter = searchQuery
+    ? ` && title match "*${searchQuery.replace(/"/g, '')}*"`
+    : '';
+
   try {
-    // Single combined query — avoids two separate Sanity API calls.
     const { videos: rawVideos, totalCount } = await sanityClient.fetch<{
       videos: VideoSanityItem[];
       totalCount: number;
     }>(`{
-      "videos": *[_type == "video"] | order(coalesce(publishedAt, _createdAt) desc, _createdAt desc)[${offset}...${offset + limit}]{
+      "videos": *[_type == "video"${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc, _createdAt desc)[${offset}...${offset + limit}]{
         _id,
         title,
         slug,
@@ -33,7 +39,7 @@ export async function GET(request: Request) {
         },
         publishedAt
       },
-      "totalCount": count(*[_type == "video"])
+      "totalCount": count(*[_type == "video"${searchFilter}])
     }`);
 
     const videos = rawVideos.map((video) => ({
@@ -58,4 +64,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
