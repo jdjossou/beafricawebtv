@@ -17,7 +17,7 @@ const socialLinks = [
   },
   {
     label: 'Facebook',
-    url: 'https://www.facebook.com/beAfrica',
+    url: 'https://www.facebook.com/Onsedittouttv/',
     icon: '/icons/facebook_icon.png',
   },
   {
