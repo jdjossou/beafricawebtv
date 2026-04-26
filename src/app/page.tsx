@@ -6,7 +6,6 @@ import HeroVideo from '@/components/home/HeroVideo';
 import VideoCard from '@/components/video/VideoCard';
 import VideoGrid from '@/components/video/VideoGrid';
 import MembershipBanner from '@/components/home/MembershipBanner';
-import SocialStrip from '@/components/home/SocialStrip';
 
 const FETCH_LIMIT = 9; // 1 hero + 8 grid
 
@@ -89,8 +88,6 @@ export default async function Home() {
         {/* Membership CTA */}
         <MembershipBanner />
 
-        {/* Social Links */}
-        <SocialStrip />
       </div>
     </main>
   );
