@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { requireApiSecret } from '@/lib/apiAuth';
 import { bunnyThumbnailUrl } from '@/lib/bunny';
 
 type BunnyVideoResult = {
@@ -44,9 +43,6 @@ function isReady(result: BunnyVideoResult): boolean {
  * was redundant and exceeded Vercel's function timeout.
  */
 export async function POST(req: Request) {
-  // ── Auth gate ──────────────────────────────────────────────
-  const denied = requireApiSecret(req);
-  if (denied) return denied;
 
   // ── Credentials ────────────────────────────────────────────
   const libraryId = process.env.BUNNY_LIBRARY_ID;

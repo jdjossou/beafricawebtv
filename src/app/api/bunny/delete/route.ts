@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireApiSecret } from '@/lib/apiAuth';
 
 export async function POST(req: Request) {
-  // ── Auth gate ──────────────────────────────────────────────
-  const denied = requireApiSecret(req);
-  if (denied) return denied;
 
   // ── Credentials ────────────────────────────────────────────
   const libraryId = process.env.BUNNY_LIBRARY_ID;

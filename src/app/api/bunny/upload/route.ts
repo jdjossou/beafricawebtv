@@ -1,6 +1,5 @@
 import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { requireApiSecret } from '@/lib/apiAuth';
 
 type ClientPayload = {
   filename?: string;
@@ -39,9 +38,6 @@ function buildSignature(
 }
 
 export async function POST(req: NextRequest) {
-  // ── Auth gate ──────────────────────────────────────────────
-  const denied = requireApiSecret(req);
-  if (denied) return denied;
 
   // ── Credentials ────────────────────────────────────────────
   const libraryId = process.env.BUNNY_LIBRARY_ID;

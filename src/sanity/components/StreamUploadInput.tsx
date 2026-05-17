@@ -8,7 +8,7 @@ import {
   type ObjectInputProps,
   type ObjectSchemaType,
 } from 'sanity'
-import {DetailedError as TusDetailedError, Upload as TusUpload} from 'tus-js-client'
+import { DetailedError as TusDetailedError, Upload as TusUpload } from 'tus-js-client'
 
 type StreamValue = {
   playbackId?: string | null
@@ -76,12 +76,9 @@ type CreateUploadPayload = {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const API_SECRET = process.env.NEXT_PUBLIC_API_ROUTE_SECRET ?? ''
-
 function apiHeaders(extra?: Record<string, string>): Record<string, string> {
   return {
     'Content-Type': 'application/json',
-    'X-API-Secret': API_SECRET,
     ...extra,
   }
 }
@@ -92,6 +89,8 @@ async function createDirectUpload(payload: CreateUploadPayload): Promise<CreateU
     headers: apiHeaders(),
     body: JSON.stringify(payload),
   })
+  console.log("Response: ", res)
+
   if (!res.ok) throw new Error('Impossible de créer une URL de téléversement direct.')
   return res.json()
 }
@@ -102,7 +101,7 @@ async function uploadWithProgress(
   onProgress: (percent: number | null) => void,
   options?: UploadWithProgressOptions,
 ) {
-  const {signal, onRegister, headers, metadata} = options ?? {}
+  const { signal, onRegister, headers, metadata } = options ?? {}
 
   await new Promise<void>((resolve, reject) => {
     if (signal?.aborted) {
@@ -217,10 +216,10 @@ async function uploadWithProgress(
 async function pollUntilReady(
   uid: string,
   onProgress: (payload: ProcessingProgress) => void,
-): Promise<{uid: string | null; playbackId: string; duration: number | null; thumbnail: string | null}> {
+): Promise<{ uid: string | null; playbackId: string; duration: number | null; thumbnail: string | null }> {
   const startedAt = Date.now()
 
-  for (;;) {
+  for (; ;) {
     if (Date.now() - startedAt > PROCESSING_TIMEOUT_MS) {
       throw new Error('Bunny met trop de temps à finaliser la vidéo. Merci de réessayer.')
     }
@@ -230,7 +229,7 @@ async function pollUntilReady(
     const res = await fetch('/api/bunny/status', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({uid}),
+      body: JSON.stringify({ uid }),
       cache: 'no-store',
     })
 
@@ -272,7 +271,7 @@ async function deleteStreamAsset(uid: string) {
   const res = await fetch('/api/bunny/delete', {
     method: 'POST',
     headers: apiHeaders(),
-    body: JSON.stringify({uid}),
+    body: JSON.stringify({ uid }),
     cache: 'no-store',
   })
 
@@ -280,11 +279,11 @@ async function deleteStreamAsset(uid: string) {
     const payload = await res.json().catch(() => null)
     const message =
       payload && typeof payload === 'object' && 'error' in payload
-        ? (payload as {error?: string; details?: unknown}).error
+        ? (payload as { error?: string; details?: unknown }).error
         : null
     const reason =
       payload && typeof payload === 'object' && 'details' in payload
-        ? JSON.stringify((payload as {details?: unknown}).details)
+        ? JSON.stringify((payload as { details?: unknown }).details)
         : null
 
     throw new Error(message ?? reason ?? 'Bunny Stream asset deletion failed.')
@@ -301,10 +300,10 @@ function formatDuration(value: number | null | undefined) {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-export default function StreamUploadInput({value, onChange}: Props) {
+export default function StreamUploadInput({ value, onChange }: Props) {
   const [status, setStatus] = React.useState<UploadStatus>(initialStatus)
   const [error, setError] = React.useState<string | null>(null)
-  const [meta, setMeta] = React.useState<{duration?: number | null; thumbnail?: string | null}>(
+  const [meta, setMeta] = React.useState<{ duration?: number | null; thumbnail?: string | null }>(
     {},
   )
 
@@ -377,7 +376,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
     abortControllerRef.current = controller
 
     try {
-      const {uploadURL, uid, signature, expires, libraryId, tusHeaders: serverTusHeaders} = await createDirectUpload({
+      const { uploadURL, uid, signature, expires, libraryId, tusHeaders: serverTusHeaders } = await createDirectUpload({
 
         filename: file.name,
 
@@ -415,7 +414,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
           setUploadStatus(prev => {
             if (typeof percent === 'number' && Number.isFinite(percent)) {
               const normalized = Math.max(prev.progress, Math.min(90, Math.round(10 + percent * 0.8)))
-              
+
               return {
                 stage: 'uploading',
                 progress: normalized,
@@ -511,7 +510,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
         detail: 'Identifiants Bunny enregistrés dans Sanity.',
       })
 
-      setMeta({duration, thumbnail})
+      setMeta({ duration, thumbnail })
     } catch (err) {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null
@@ -622,20 +621,20 @@ export default function StreamUploadInput({value, onChange}: Props) {
   const playbackId = value?.playbackId ?? null
 
   return (
-    <div style={{display: 'grid', gap: 12}}>
+    <div style={{ display: 'grid', gap: 12 }}>
       {playbackId ? (
-        <div style={{display: 'grid', gap: 6}}>
+        <div style={{ display: 'grid', gap: 6 }}>
           <div>
             <strong>Identifiant de lecture :</strong> {playbackId}
           </div>
-          <div style={{display: 'flex', gap: 8}}>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" onClick={clearValue} disabled={busy}>
               Effacer
             </button>
           </div>
         </div>
       ) : (
-        <div style={{display: 'grid', gap: 6}}>
+        <div style={{ display: 'grid', gap: 6 }}>
           <input type="file" accept="video/*" onChange={handleFileChange} disabled={busy} />
         </div>
       )}
@@ -652,7 +651,7 @@ export default function StreamUploadInput({value, onChange}: Props) {
               status.stage === 'error' ? '#fef2f2' : status.stage === 'complete' ? '#f0fdf4' : '#f9fafb',
           }}
         >
-          <div style={{fontWeight: 600, color: '#111827'}}>{status.message}</div>
+          <div style={{ fontWeight: 600, color: '#111827' }}>{status.message}</div>
           <div
             style={{
               position: 'relative',
@@ -673,30 +672,30 @@ export default function StreamUploadInput({value, onChange}: Props) {
             />
           </div>
           {status.detail ? (
-            <div style={{color: '#374151', fontSize: 12}}>{status.detail}</div>
+            <div style={{ color: '#374151', fontSize: 12 }}>{status.detail}</div>
           ) : null}
         </div>
       ) : null}
 
       {error ? (
-        <div style={{color: '#b91c1c', fontSize: 12}}>
+        <div style={{ color: '#b91c1c', fontSize: 12 }}>
           {error}
         </div>
       ) : null}
 
       {resolvedThumbnail ? (
-        <div style={{display: 'grid', gap: 6, maxWidth: 320}}>
+        <div style={{ display: 'grid', gap: 6, maxWidth: 320 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={resolvedThumbnail}
             alt="Miniature Bunny"
-            style={{width: '100%', borderRadius: 8, border: '1px solid #e5e7eb'}}
+            style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }}
           />
         </div>
       ) : null}
 
       {formattedDuration ? (
-        <div style={{color: '#6b7280', fontSize: 12}}>Durée estimée : {formattedDuration}</div>
+        <div style={{ color: '#6b7280', fontSize: 12 }}>Durée estimée : {formattedDuration}</div>
       ) : null}
     </div>
   )

@@ -4,10 +4,7 @@ import { NextResponse } from 'next/server';
  * Validate that the incoming request carries the correct API secret.
  *
  * Usage inside a route handler:
- * ```ts
- * const denied = requireApiSecret(req);
- * if (denied) return denied;
- * ```
+ *  
  *
  * Returns `null` when the request is authorised, or a 401 `NextResponse`
  * when it is not.
